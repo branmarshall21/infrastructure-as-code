@@ -1,64 +1,28 @@
-data "aws_ami" "amazon-linux-2" {
-  most_recent = true
-  owners = ["amazon"]
+#!/bin/bash
+sudo yum -y update
 
-  filter {
-    name = "name"
-    values = [
-      "amzn2-ami-hvm-*-x86_64-gp2",
-    ]
-  }
-  filter {
-    name = "owner-alias"
-    values = [
-      "amazon",
-    ]
-  }
-}
+echo "Install Java JDK 8"
+yum remove -y java
+yum install -y java-1.8.0-openjdk
 
-resource "aws_instance" "jenkins-instance" {
-  ami             = data.aws_ami.amazon-linux-2.id
-  instance_type   = "t2.micro"
-  key_name        = var.keyname
-  #vpc_id          = "${aws_vpc.development-vpc.id}"
-  vpc_security_group_ids = [aws_security_group.sg_allow_ssh_jenkins.id]
-  subnet_id          = aws_subnet.public-subnet-1.id
-  #name            = "${var.name}"
-  user_data = file("install-jenkins.sh")
+echo "Install Maven"
+yum install -y maven
 
-  associate_public_ip_address = true
-  tags = {
-    Name = "Jenkins-Instance"
-  }
-}
+echo "Install git"
+yum install -y git
 
-resource "aws_security_group" "sg_allow_ssh_jenkins" {
-  name        = "allow_ssh_jenkins"
-  description = "Allow SSH and Jenkins inbound traffic"
-  vpc_id      = aws_vpc.development-vpc.id
+echo "Install Docker engine"
+yum update -y
+yum install docker -y
+#sudo usermod -a -G docker jenkins
+#sudo service docker start
+sudo chkconfig docker on
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    cidr_blocks     = ["0.0.0.0/0"]
-  }
-}
-
-output "jenkins_ip_address" {
-  value = aws_instance.jenkins-instance.public_dns
-}
+echo "Install Jenkins"
+wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat-rc/jenkins.repo
+rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+yum install -y jenkins
+sudo usermod -a -G docker jenkins
+sudo chkconfig jenkins on
+sudo service docker start
+sudo service jenkins start
